@@ -1,0 +1,27 @@
+FROM openeuler-20.03-lts-sp4:latest
+
+ENV LANG=en_US.UTF-8
+
+RUN mkdir /home/app \
+    && groupadd app \    
+    && useradd -g app -d /home/app -m app -s /bin/bash \
+    && chown -R app:app /home/app
+
+ENV PATH=/home/app/.local/bin:$PATH
+
+RUN yum install -y gcc gcc-c++ make cmake unzip zlib-devel libffi-devel openssl-devel pciutils net-tools sqlite-devel lapack-devel gcc-gfortran python3-devel python3-pip diffutils wget
+
+USER app
+WORKDIR /home/app
+
+COPY --chown=app:app ./cann_pkgs /home/app/cann_pkgs
+COPY --chown=app:app ./requirements.dev_310b_7.0.0.txt /home/app/requirements.txt
+RUN pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple \
+    && pip3 install -r ./requirements.txt
+
+RUN bash ./cann_pkgs/Ascend-cann-toolkit_7.0.0_linux-x86_64.run --install --quiet \
+    && bash ./cann_pkgs/Ascend-cann-kernels-310b_7.0.0_linux.run --install --quiet 
+
+RUN echo -e '\n\n# 安装toolkit包时配置\nsource /home/app/Ascend/ascend-toolkit/set_env.sh\nexport LD_LIBRARY_PATH=/home/app/Ascend/ascend-toolkit/latest/x86_64-linux/devlib/:$LD_LIBRARY_PATH'>>~/.bashrc
+
+RUN rm -rf /home/app/cann_pkgs
